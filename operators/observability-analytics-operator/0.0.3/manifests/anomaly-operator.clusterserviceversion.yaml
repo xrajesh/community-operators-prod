@@ -1,0 +1,342 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "backend.anomaly.io/v1alpha1",
+          "kind": "AnomalyData",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "anomaly-operator",
+              "app.kubernetes.io/instance": "anomalydata-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "anomalydata",
+              "app.kubernetes.io/part-of": "anomaly-operator"
+            },
+            "name": "anomalydata-sample"
+          },
+          "spec": {
+            "anomalyname": "etcd_object_namespaces",
+            "config": {
+              "max": 100,
+              "min": 60,
+              "query": "max(apiserver_storage_objects{resource=~\"namespaces\"}) by (resource)"
+            },
+            "method": "min_max",
+            "metricdata": {
+              "groupeddata": "{ \"resource\": \"namespaces\" }",
+              "latestvalue": 121,
+              "timestamp": 1695804362
+            }
+          }
+        },
+        {
+          "apiVersion": "backend.anomaly.io/v1alpha1",
+          "kind": "AnomalyEngine",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "anomaly-operator",
+              "app.kubernetes.io/instance": "anomalyengine-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "anomalyengine",
+              "app.kubernetes.io/part-of": "anomaly-operator"
+            },
+            "name": "anomalyengine-sample"
+          },
+          "spec": {
+            "anomalyqueryconfiguration": "kube_configmap_info:\n  method: percentage_change\n  query: count(kube_configmap_info)\n  step: 2  # minutes\n  percentage_change: 60  # percentage\n  period_range: 60  # minutes\n  have_multi_result_data: False\netcd_object_namespaces:\n  method: min_max\n  query: max(apiserver_storage_objects{resource=~\"namespaces\"}) by (resource)\n  min: 60\n  max: 100\netcd_object_secrets_config_maps:\n  method: percentage_change\n  query: max(apiserver_storage_objects{resource=~\"secrets|configmaps\"}) by (resource)\n  step: 2  # minutes\n  percentage_change: 60  # percentage\n  period_range: 60  # minutes\n  have_multi_result_data: True\n",
+            "cronjobconfig": {
+              "anomalyqueries": "etcd_object_secrets_config_maps,etcd_object_namespaces",
+              "image": "quay.io/openshiftanalytics/incluster-anomaly:v1",
+              "name": "osa-anomaly-detection",
+              "resource": {
+                "cpulimit": "256m",
+                "cpurequest": "128m",
+                "memorylimit": "512Mi",
+                "memoryrequest": "256Mi"
+              },
+              "schedule": "*/5 * * * *"
+            },
+            "namespace": "osa-anomaly-detection",
+            "serviceaccountrolebinding": {
+              "clusterrolename": "cluster-monitoring-view",
+              "name": "osa-in-cluster-thanos-querier"
+            }
+          }
+        }
+      ]
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.23.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+  name: anomaly-operator.v0.0.3
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: AnomalyData is the Schema for the anomalydata API
+      displayName: Anomaly Data
+      kind: AnomalyData
+      name: anomalydata.backend.anomaly.io
+      version: v1alpha1
+    - description: AnomalyEngine is the Schema for the anomalyengines API
+      displayName: Anomaly Engine
+      kind: AnomalyEngine
+      name: anomalyengines.backend.anomaly.io
+      version: v1alpha1
+  description: analytics-operator runs Openshift analytics process like anomaly detection.
+  displayName: analytics-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - backend.anomaly.io
+          resources:
+          - anomalydata
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - backend.anomaly.io
+          resources:
+          - anomalydata/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - backend.anomaly.io
+          resources:
+          - anomalydata/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - backend.anomaly.io
+          resources:
+          - anomalyengines
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - backend.anomaly.io
+          resources:
+          - anomalyengines/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - backend.anomaly.io
+          resources:
+          - anomalyengines/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - namespaces
+          - secrets
+          - serviceaccounts
+          - services
+          verbs:
+          - create
+          - delete
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+        serviceAccountName: anomaly-operator-controller-manager
+      deployments:
+      - label:
+          app.kubernetes.io/component: manager
+          app.kubernetes.io/created-by: anomaly-operator
+          app.kubernetes.io/instance: controller-manager
+          app.kubernetes.io/managed-by: kustomize
+          app.kubernetes.io/name: deployment
+          app.kubernetes.io/part-of: anomaly-operator
+          control-plane: controller-manager
+        name: anomaly-operator-controller-manager
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              control-plane: controller-manager
+          strategy: {}
+          template:
+            metadata:
+              annotations:
+                kubectl.kubernetes.io/default-container: manager
+              labels:
+                control-plane: controller-manager
+            spec:
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: kubernetes.io/arch
+                        operator: In
+                        values:
+                        - amd64
+                        - arm64
+                        - ppc64le
+                        - s390x
+                      - key: kubernetes.io/os
+                        operator: In
+                        values:
+                        - linux
+              containers:
+              - args:
+                - --secure-listen-address=0.0.0.0:8443
+                - --upstream=http://127.0.0.1:8080/
+                - --logtostderr=true
+                - --v=0
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+                name: kube-rbac-proxy
+                ports:
+                - containerPort: 8443
+                  name: https
+                  protocol: TCP
+                resources:
+                  limits:
+                    cpu: 500m
+                    memory: 128Mi
+                  requests:
+                    cpu: 5m
+                    memory: 64Mi
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+              - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                command:
+                - /manager
+                image: quay.io/openshiftanalytics/observability-analytics-operator:0.0.3
+                livenessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8081
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+                name: manager
+                readinessProbe:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                resources:
+                  limits:
+                    cpu: 500m
+                    memory: 128Mi
+                  requests:
+                    cpu: 10m
+                    memory: 64Mi
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+              securityContext:
+                runAsNonRoot: true
+              serviceAccountName: anomaly-operator-controller-manager
+              terminationGracePeriodSeconds: 10
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
+        serviceAccountName: anomaly-operator-controller-manager
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: false
+    type: AllNamespaces
+  keywords:
+  - analytics-operator,analytics,anomaly
+  links:
+  - name: Anomaly Operator
+    url: https://anomaly-operator.domain
+  maturity: alpha
+  provider:
+    name: Red Hat
+  version: 0.0.3
+  replaces: anomaly-operator.v0.0.2
